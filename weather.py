@@ -32,16 +32,27 @@ class OAuthValidationMiddleware(Middleware):
             if auth_header and auth_header.startswith("Bearer "):
                 token = auth_header[7:]  # Remove "Bearer " prefix
 
-                # Validate token with OAuth server
+                # Validate token with OAuth server and check resource access
                 print(f"Validating token: {token[:20]}...")
-                is_valid = await validate_token_with_oauth_server(token)
+                is_valid, token_info = await validate_token_with_oauth_server(token)
                 if not is_valid:
                     print("Invalid or expired access token")
                     raise HTTPException(
                         status_code=401, detail="Invalid or expired access token"
                     )
 
-                print("✓ OAuth token validated successfully")
+                # RFC 8707: Validate resource access
+                server_resource = (
+                    "http://localhost:8000"  # This server's resource identifier
+                )
+                if not validate_resource_access(token_info, server_resource):
+                    print("Token does not grant access to this resource")
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Token does not grant access to this resource",
+                    )
+
+                print("✓ OAuth token and resource access validated successfully")
             else:
                 print("Missing or invalid authorization header")
                 raise HTTPException(
@@ -57,8 +68,8 @@ class OAuthValidationMiddleware(Middleware):
         return await call_next(context)
 
 
-async def validate_token_with_oauth_server(token: str) -> bool:
-    """Validate access token with OAuth server"""
+async def validate_token_with_oauth_server(token: str) -> tuple[bool, Optional[dict]]:
+    """Validate access token with OAuth server and return token info"""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -66,8 +77,43 @@ async def validate_token_with_oauth_server(token: str) -> bool:
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=10.0,
             )
-            return response.status_code == 200
+            if response.status_code == 200:
+                token_info = response.json()
+                return True, token_info
+            return False, None
     except Exception:
+        return False, None
+
+
+def validate_resource_access(token_info: dict, requested_resource: str) -> bool:
+    """Validate that token allows access to requested resource per RFC 8707"""
+    if not token_info:
+        return False
+
+    # Get token's resource from OAuth server response
+    token_resource = token_info.get("resource")
+
+    if not token_resource:
+        # If no resource in token, allow access (backward compatibility)
+        print("ℹ️  Token has no resource restriction")
+        return True
+
+    # Normalize both URIs for comparison
+    requested_normalized = requested_resource.rstrip("/")
+    token_normalized = token_resource.rstrip("/")
+
+    # RFC 8707: Token resource should match or be a parent of requested resource
+    if requested_normalized == token_normalized or requested_normalized.startswith(
+        token_normalized + "/"
+    ):
+        print(
+            f"✓ Resource access granted: token resource '{token_resource}' allows access to '{requested_resource}'"
+        )
+        return True
+    else:
+        print(
+            f"❌ Resource access denied: token resource '{token_resource}' does not allow access to '{requested_resource}'"
+        )
         return False
 
 

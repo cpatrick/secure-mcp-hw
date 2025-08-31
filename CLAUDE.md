@@ -56,6 +56,7 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 ### Key Architecture Patterns
 
 - **RFC 8414 Discovery**: Automatic OAuth server discovery via authorization server metadata
+- **RFC 8707 Resource Indicators**: Precise token audience targeting for specific MCP servers
 - **Custom OAuth Implementation**: Manual OAuth 2.1 implementation with PKCE security
 - **Three-Tier Architecture**: OAuth Server → MCP Server → Client with proper token validation
 - **HTTP Communication**: Client and server communicate via HTTP Server-Sent Events (SSE)
@@ -67,19 +68,22 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 - **Context Manager Pattern**: MCP ClientSession uses async context managers for proper cleanup
 - **Tool Call Flow**: Client → Claude API → Tool Execution → Results back to Claude → Final Response
 - **Dynamic Client Registration**: Automatic client registration with OAuth server
-- **Middleware Authentication**: FastMCP middleware validates OAuth tokens using `get_http_headers()`
+- **Middleware Authentication**: FastMCP middleware validates OAuth tokens and resource access
 
-### OAuth Flow (Discovery + Custom Implementation)
+### OAuth Flow (Discovery + Resource Indicators)
 
 1. **Server Discovery**: Discover OAuth server from MCP server's `/.well-known/oauth-protected-resource`
 2. **Metadata Validation**: Validate OAuth server metadata via RFC 8414 `/.well-known/oauth-authorization-server`
-3. **Client Registration**: Dynamic registration with OAuth server using RFC 7591
-4. **PKCE Generation**: Generate code verifier and challenge for enhanced security
-5. **Browser Authorization**: Open browser for user consent with authorization URL
-6. **Manual Code Entry**: User manually enters authorization code from callback
-7. **Token Exchange**: Authorization code exchanged for access tokens with PKCE verification
-8. **HTTP Headers**: Access tokens manually included in MCP request headers
-9. **Server Validation**: MCP server middleware validates tokens with OAuth server
+3. **Resource Validation**: Validate MCP server URI per RFC 8707 (absolute URI, no fragments)
+4. **Client Registration**: Dynamic registration with OAuth server using RFC 7591
+5. **PKCE Generation**: Generate code verifier and challenge for enhanced security
+6. **Authorization Request**: Request authorization with resource indicator targeting specific MCP server
+7. **Browser Authorization**: Open browser for user consent with authorization URL
+8. **Manual Code Entry**: User manually enters authorization code from callback
+9. **Token Exchange**: Exchange code for access token with resource indicator for audience restriction
+10. **Resource Verification**: Validate returned token resource matches requested resource
+11. **HTTP Headers**: Include access tokens in MCP request headers
+12. **Server Validation**: MCP server middleware validates tokens and resource access per RFC 8707
 
 ### Dependencies
 
@@ -94,13 +98,15 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 
 The client expects an `.env` file with `ANTHROPIC_API_KEY` for Claude API access.
 
-### Benefits of Discovery-Based OAuth Implementation
+### Benefits of Discovery-Based OAuth with Resource Indicators
 
 - ✅ **Automatic Discovery**: Zero configuration OAuth server discovery via RFC 8414
-- ✅ **Standards Compliant**: Full OAuth 2.1, RFC 8414, and RFC 7591 compliance
-- ✅ **Educational Value**: Demonstrates complete OAuth 2.1 flow implementation
+- ✅ **Standards Compliant**: Full OAuth 2.1, RFC 8414, RFC 8707, and RFC 7591 compliance
+- ✅ **Precise Authorization**: Resource indicators prevent cross-server token misuse
+- ✅ **Educational Value**: Demonstrates complete OAuth 2.1 flow with modern extensions
 - ✅ **Full Control**: Complete control over token management and validation
-- ✅ **Security Standards**: PKCE, dynamic registration, resource indicators
-- ✅ **Debugging Visibility**: Clear logging of discovery and OAuth steps
-- ✅ **Middleware Integration**: Custom FastMCP middleware for token validation
-- ✅ **Production Ready**: Robust error handling and fallback mechanisms
+- ✅ **Security Standards**: PKCE, dynamic registration, resource targeting
+- ✅ **Resource Validation**: Client-side and server-side resource access validation
+- ✅ **Debugging Visibility**: Clear logging of discovery, OAuth, and resource validation steps
+- ✅ **Middleware Integration**: Custom FastMCP middleware for comprehensive validation
+- ✅ **Production Ready**: Robust error handling, fallback mechanisms, and security checks

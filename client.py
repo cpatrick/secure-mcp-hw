@@ -28,6 +28,9 @@ class MCPClient:
         self.client_secret: Optional[str] = None
         self.server_url: Optional[str] = None
         self.discovered_auth_server: Optional[str] = None
+        self.token_resource: Optional[str] = (
+            None  # RFC 8707: Track token's intended resource
+        )
 
     async def discover_oauth_server(self, mcp_server_url: str) -> Optional[str]:
         """Discover OAuth authorization server from MCP server metadata (RFC 8414)"""
@@ -157,13 +160,31 @@ class MCPClient:
         )
         return code_verifier, code_challenge
 
+    def validate_resource_uri(self, resource_uri: str) -> str:
+        """Validate and normalize resource URI per RFC 8707"""
+        # RFC 8707: Resource parameter MUST be an absolute URI
+        if not resource_uri.startswith(("http://", "https://")):
+            raise ValueError(f"Resource URI must be absolute: {resource_uri}")
+
+        # RFC 8707: Resource URI MUST NOT contain a fragment component
+        if "#" in resource_uri:
+            raise ValueError(f"Resource URI must not contain fragment: {resource_uri}")
+
+        # Remove trailing slashes for consistency (use most specific base URI)
+        normalized_uri = resource_uri.rstrip("/")
+        return normalized_uri
+
     async def perform_oauth_flow(self, auth_server_url: str, server_url: str):
-        """Perform OAuth 2.1 authorization code flow with PKCE"""
+        """Perform OAuth 2.1 authorization code flow with PKCE and Resource Indicators (RFC 8707)"""
+
+        # Validate resource URI per RFC 8707
+        resource_uri = self.validate_resource_uri(server_url)
+        print(f"🎯 Using resource indicator: {resource_uri}")
 
         # Generate PKCE parameters
         code_verifier, code_challenge = self.generate_pkce_challenge()
 
-        # Build authorization URL
+        # Build authorization URL with resource indicator per RFC 8707
         auth_params = {
             "response_type": "code",
             "client_id": self.client_id,
@@ -171,7 +192,7 @@ class MCPClient:
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
             "scope": "read",
-            "resource": server_url,
+            "resource": resource_uri,  # RFC 8707: Resource Indicator
             "state": secrets.token_urlsafe(16),
         }
 
@@ -190,7 +211,7 @@ class MCPClient:
             "\nPaste the authorization code from the callback URL: "
         ).strip()
 
-        # Exchange code for tokens
+        # Exchange code for tokens with resource indicator per RFC 8707
         token_data = {
             "grant_type": "authorization_code",
             "code": auth_code,
@@ -198,7 +219,7 @@ class MCPClient:
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "code_verifier": code_verifier,
-            "resource": server_url,
+            "resource": resource_uri,  # RFC 8707: Resource Indicator for token audience
         }
 
         async with httpx.AsyncClient() as client:
@@ -210,7 +231,20 @@ class MCPClient:
             token_response = response.json()
             self.access_token = token_response["access_token"]
 
-            print("✓ Successfully obtained access token")
+            # RFC 8707: Track the resource this token is intended for
+            self.token_resource = resource_uri
+
+            # Validate resource in token response if provided
+            if "resource" in token_response:
+                returned_resource = token_response["resource"]
+                if returned_resource != resource_uri:
+                    print(
+                        f"⚠️  Token resource mismatch: requested {resource_uri}, got {returned_resource}"
+                    )
+                else:
+                    print(f"✓ Token resource confirmed: {returned_resource}")
+
+            print("✓ Successfully obtained access token with resource indicator")
             return token_response
 
     async def connect_to_server(
@@ -252,6 +286,14 @@ class MCPClient:
         """Process a query using Claude and available tools"""
         if not self.access_token or not self.server_url:
             raise ValueError("Client not connected. Call connect_to_server first.")
+
+        # RFC 8707: Validate we're using the token for its intended resource
+        if self.token_resource and self.server_url:
+            current_resource = self.validate_resource_uri(self.server_url)
+            if current_resource != self.token_resource:
+                raise ValueError(
+                    f"Token resource mismatch: token for {self.token_resource}, requesting {current_resource}"
+                )
 
         print("Processing query with MCP tools...")
 
