@@ -21,6 +21,12 @@ uv run python client.py
 
 # Run client with custom MCP server URL (OAuth server auto-discovered)
 uv run python client.py --server-url http://localhost:8000/mcp
+
+# Run unit tests
+uv run pytest test_client.py -v
+
+# Run tests with coverage report
+uv run pytest test_client.py -v --cov=client --cov-report=term-missing
 ```
 
 ## Project Architecture
@@ -97,6 +103,44 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 - `httpx`: HTTP client for weather API calls and OAuth validation
 
 The client expects an `.env` file with `ANTHROPIC_API_KEY` for Claude API access.
+
+## Testing
+
+The project includes comprehensive unit tests for the OAuth client implementation:
+
+### Test Coverage
+- **OAuth Server Discovery**: Tests RFC 8414 endpoint discovery and metadata validation
+- **Resource URI Validation**: Tests RFC 8707 resource indicator validation
+- **PKCE Generation**: Tests code verifier and challenge generation for security
+- **Client Registration**: Tests dynamic client registration per RFC 7591
+- **Token Exchange**: Tests OAuth 2.1 authorization code flow with resource indicators
+- **Error Handling**: Tests various failure scenarios and edge cases
+- **Integration Tests**: End-to-end flow testing with mocked HTTP responses
+
+### Running Tests
+```bash
+# Install test dependencies
+uv sync --extra test
+
+# Run all tests
+uv run pytest test_client.py -v
+
+# Run tests with coverage report
+uv run pytest test_client.py -v --cov=client --cov-report=term-missing
+
+# Run specific test
+uv run pytest test_client.py::TestMCPClient::test_validate_resource_uri_valid -v
+
+# Run test runner script (with coverage HTML report)
+uv run python run_tests.py
+```
+
+### Test Structure
+- `TestMCPClient`: Unit tests for individual methods and functionality
+- `TestMCPClientIntegration`: Integration tests for complete workflows
+- Comprehensive mocking of HTTP requests and responses
+- Async test support with pytest-asyncio
+- Coverage reporting with pytest-cov
 
 ### Benefits of Discovery-Based OAuth with Resource Indicators
 
