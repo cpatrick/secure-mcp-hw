@@ -20,7 +20,7 @@ uv run python weather.py
 uv run python client.py
 
 # Run client with custom MCP server URL (OAuth server auto-discovered)
-uv run python client.py --server-url http://localhost:8000/mcp
+uv run python client.py --server-url http://127.0.0.1:8000/mcp
 
 # Run unit tests
 uv run pytest test_client.py -v
@@ -47,7 +47,7 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 
 - **Weather MCP Server** (`weather.py`): FastMCP server with custom OAuth middleware
 
-  - Runs as HTTP server using SSE transport on localhost:8000
+  - Runs as HTTP server using streaming HTTP transport on 127.0.0.1:8000
   - Custom OAuth validation middleware using `get_http_headers()`
   - Implements two tools: `get_alerts(state)` and `get_forecast(latitude, longitude)`
   - Uses National Weather Service API with proper error handling
@@ -68,7 +68,7 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 - **RFC 8707 Resource Indicators**: Precise token audience targeting for specific MCP servers
 - **Custom OAuth Implementation**: Manual OAuth 2.1 implementation with PKCE security
 - **Three-Tier Architecture**: OAuth Server → MCP Server → Client with proper token validation
-- **HTTP Communication**: Client and server communicate via HTTP Server-Sent Events (SSE)
+- **HTTP Communication**: Client and server communicate via streaming HTTP
 - **Separate Processes**: All components run independently as separate HTTP services
 - **Manual Token Management**: Custom token handling, validation, and HTTP header management
 - **Browser-based Flow**: OAuth authentication opens browser for user consent

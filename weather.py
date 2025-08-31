@@ -233,5 +233,5 @@ if __name__ == "__main__":
     print(f"OAuth server must be running at: {OAUTH_SERVER_URL}")
     print("✓ OAuth token validation enabled for all tool requests")
 
-    # Run with HTTP transport using SSE for streamable communication
+    # Run with HTTP transport using streaming HTTP for communication
     mcp.run(transport="http", host="127.0.0.1", port=8000)

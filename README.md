@@ -44,7 +44,7 @@ You'll need **three separate terminals** for the three components:
 uv run python oauth.py
 ```
 
-*Server starts on http://localhost:8003*
+*Server starts on http://localhost:8001*
 
 **Terminal 2: Weather MCP Server**
 
@@ -132,7 +132,7 @@ python run_tests.py test_specific_function_name
 
 **"Failed to discover OAuth authorization server"**
 
-- Ensure the OAuth server is running on localhost:8003
+- Ensure the OAuth server is running on localhost:8001
 - Check that the weather server is running on 127.0.0.1:8000
 
 **"Resource access denied"**
