@@ -27,6 +27,94 @@ class MCPClient:
         self.client_id: Optional[str] = None
         self.client_secret: Optional[str] = None
         self.server_url: Optional[str] = None
+        self.discovered_auth_server: Optional[str] = None
+
+    async def discover_oauth_server(self, mcp_server_url: str) -> Optional[str]:
+        """Discover OAuth authorization server from MCP server metadata (RFC 8414)"""
+        try:
+            # Try to discover OAuth protected resource metadata
+            async with httpx.AsyncClient() as client:
+                # Remove /mcp suffix if present for metadata discovery
+                base_url = mcp_server_url.rstrip("/mcp").rstrip("/")
+                metadata_url = f"{base_url}/.well-known/oauth-protected-resource"
+
+                print(f"🔍 Discovering OAuth server from: {metadata_url}")
+                response = await client.get(metadata_url, timeout=10.0)
+
+                if response.status_code == 200:
+                    metadata = response.json()
+                    auth_servers = metadata.get("authorization_servers", [])
+
+                    if auth_servers:
+                        auth_server_url = auth_servers[0]  # Use the first one
+                        print(f"✓ Discovered OAuth server: {auth_server_url}")
+
+                        # Now get the authorization server metadata (RFC 8414)
+                        auth_metadata = await self.get_authorization_server_metadata(
+                            auth_server_url
+                        )
+                        if auth_metadata:
+                            self.discovered_auth_server = auth_server_url
+                            return auth_server_url
+
+                print("⚠️  No OAuth server discovered from MCP server metadata")
+                return None
+
+        except Exception as e:
+            print(f"⚠️  OAuth server discovery failed: {e}")
+            return None
+
+    async def get_authorization_server_metadata(
+        self, auth_server_url: str
+    ) -> Optional[dict]:
+        """Get OAuth authorization server metadata per RFC 8414"""
+        try:
+            async with httpx.AsyncClient() as client:
+                # RFC 8414 specifies /.well-known/oauth-authorization-server
+                metadata_url = (
+                    f"{auth_server_url}/.well-known/oauth-authorization-server"
+                )
+
+                print(f"📋 Getting authorization server metadata from: {metadata_url}")
+                response = await client.get(metadata_url, timeout=10.0)
+                response.raise_for_status()
+
+                metadata = response.json()
+
+                # Validate required fields per RFC 8414
+                required_fields = [
+                    "issuer",
+                    "authorization_endpoint",
+                    "token_endpoint",
+                    "response_types_supported",
+                ]
+                for field in required_fields:
+                    if field not in metadata:
+                        print(f"❌ Missing required metadata field: {field}")
+                        return None
+
+                # Validate issuer matches the authorization server URL
+                if metadata["issuer"] != auth_server_url:
+                    print(
+                        f"❌ Issuer mismatch: {metadata['issuer']} != {auth_server_url}"
+                    )
+                    return None
+
+                print(f"✓ Valid authorization server metadata discovered")
+                print(
+                    f"  - Authorization endpoint: {metadata['authorization_endpoint']}"
+                )
+                print(f"  - Token endpoint: {metadata['token_endpoint']}")
+                if "registration_endpoint" in metadata:
+                    print(
+                        f"  - Registration endpoint: {metadata['registration_endpoint']}"
+                    )
+
+                return metadata
+
+        except Exception as e:
+            print(f"❌ Failed to get authorization server metadata: {e}")
+            return None
 
     async def register_oauth_client(self, auth_server_url: str, server_url: str):
         """Register as OAuth client with dynamic client registration"""
@@ -128,18 +216,26 @@ class MCPClient:
     async def connect_to_server(
         self,
         server_url: str = "http://127.0.0.1:8000",
-        auth_server_url: str = "http://localhost:8001",
     ):
         """Connect to an MCP server using HTTP transport with OAuth 2.1
-        OAuth authorization is mandatory.
+        OAuth authorization is mandatory and discovered automatically via RFC 8414.
 
         Args:
             server_url: URL of the MCP server
-            auth_server_url: URL of the OAuth authorization server
         """
 
         print(f"\nConnecting to MCP server: {server_url}")
-        print(f"Using OAuth server: {auth_server_url}")
+
+        # Always discover OAuth server via RFC 8414
+        print("🔍 Discovering OAuth server via RFC 8414...")
+        auth_server_url = await self.discover_oauth_server(server_url)
+
+        if not auth_server_url:
+            raise ValueError(
+                "Failed to discover OAuth authorization server. Ensure the MCP server exposes OAuth metadata at /.well-known/oauth-protected-resource"
+            )
+
+        print(f"✓ Discovered OAuth server: {auth_server_url}")
 
         # Register OAuth client
         await self.register_oauth_client(auth_server_url, server_url)
@@ -301,26 +397,20 @@ class MCPClient:
 
 async def main():
     server_url = "http://127.0.0.1:8000/mcp"
-    auth_server_url = "http://localhost:8001"
 
     # Parse command line arguments
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="MCP Client with HTTP transport and OAuth 2.1 authentication"
+        description="MCP Client with HTTP transport and OAuth 2.1 authentication (OAuth server auto-discovered via RFC 8414)"
     )
     parser.add_argument("--server-url", default=server_url, help="MCP server URL")
-    parser.add_argument(
-        "--auth-server", default=auth_server_url, help="OAuth server URL"
-    )
 
     args = parser.parse_args()
 
     client = MCPClient()
     try:
-        await client.connect_to_server(
-            server_url=args.server_url, auth_server_url=args.auth_server
-        )
+        await client.connect_to_server(server_url=args.server_url)
         await client.chat_loop()
     finally:
         await client.cleanup()

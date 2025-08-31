@@ -16,11 +16,11 @@ uv run python oauth.py
 # Run the weather MCP server (terminal 2) - uses custom OAuth middleware
 uv run python weather.py
 
-# Run the MCP client (terminal 3) - uses custom OAuth implementation
+# Run the MCP client (terminal 3) - uses OAuth discovery via RFC 8414
 uv run python client.py
 
-# Run client with custom URLs
-uv run python client.py --server-url http://localhost:8000/mcp --auth-server http://localhost:8001
+# Run client with custom MCP server URL (OAuth server auto-discovered)
+uv run python client.py --server-url http://localhost:8000/mcp
 ```
 
 ## Project Architecture
@@ -29,8 +29,9 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 
 ### Core Components
 
-- **MCPClient** (`client.py`): Custom MCP client with OAuth 2.1 implementation
+- **MCPClient** (`client.py`): Custom MCP client with OAuth 2.1 discovery
   - Uses MCP's `ClientSession` with HTTP streamable transport
+  - Automatic OAuth server discovery via RFC 8414
   - Custom OAuth 2.1 authorization code flow with PKCE
   - Manual token management and validation
   - Browser-based authorization flow for user consent
@@ -54,6 +55,7 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 
 ### Key Architecture Patterns
 
+- **RFC 8414 Discovery**: Automatic OAuth server discovery via authorization server metadata
 - **Custom OAuth Implementation**: Manual OAuth 2.1 implementation with PKCE security
 - **Three-Tier Architecture**: OAuth Server → MCP Server → Client with proper token validation
 - **HTTP Communication**: Client and server communicate via HTTP Server-Sent Events (SSE)
@@ -67,15 +69,17 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 - **Dynamic Client Registration**: Automatic client registration with OAuth server
 - **Middleware Authentication**: FastMCP middleware validates OAuth tokens using `get_http_headers()`
 
-### OAuth Flow (Custom Implementation)
+### OAuth Flow (Discovery + Custom Implementation)
 
-1. **Client Registration**: Dynamic registration with OAuth server using RFC 7591
-2. **PKCE Generation**: Generate code verifier and challenge for enhanced security
-3. **Browser Authorization**: Open browser for user consent with authorization URL
-4. **Manual Code Entry**: User manually enters authorization code from callback
-5. **Token Exchange**: Authorization code exchanged for access tokens with PKCE verification
-6. **HTTP Headers**: Access tokens manually included in MCP request headers
-7. **Server Validation**: MCP server middleware validates tokens with OAuth server
+1. **Server Discovery**: Discover OAuth server from MCP server's `/.well-known/oauth-protected-resource`
+2. **Metadata Validation**: Validate OAuth server metadata via RFC 8414 `/.well-known/oauth-authorization-server`
+3. **Client Registration**: Dynamic registration with OAuth server using RFC 7591
+4. **PKCE Generation**: Generate code verifier and challenge for enhanced security
+5. **Browser Authorization**: Open browser for user consent with authorization URL
+6. **Manual Code Entry**: User manually enters authorization code from callback
+7. **Token Exchange**: Authorization code exchanged for access tokens with PKCE verification
+8. **HTTP Headers**: Access tokens manually included in MCP request headers
+9. **Server Validation**: MCP server middleware validates tokens with OAuth server
 
 ### Dependencies
 
@@ -90,11 +94,13 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 
 The client expects an `.env` file with `ANTHROPIC_API_KEY` for Claude API access.
 
-### Benefits of Custom OAuth Implementation
+### Benefits of Discovery-Based OAuth Implementation
 
-- ✅ **Educational Value**: Demonstrates OAuth 2.1 flow implementation details
+- ✅ **Automatic Discovery**: Zero configuration OAuth server discovery via RFC 8414
+- ✅ **Standards Compliant**: Full OAuth 2.1, RFC 8414, and RFC 7591 compliance
+- ✅ **Educational Value**: Demonstrates complete OAuth 2.1 flow implementation
 - ✅ **Full Control**: Complete control over token management and validation
 - ✅ **Security Standards**: PKCE, dynamic registration, resource indicators
-- ✅ **Debugging Visibility**: Clear logging of each OAuth step
-- ✅ **Standards Compliant**: Full OAuth 2.1 and RFC compliance
+- ✅ **Debugging Visibility**: Clear logging of discovery and OAuth steps
 - ✅ **Middleware Integration**: Custom FastMCP middleware for token validation
+- ✅ **Production Ready**: Robust error handling and fallback mechanisms
