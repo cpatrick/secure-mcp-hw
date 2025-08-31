@@ -8,4 +8,8 @@ dependencies = [
     "anthropic>=0.64.0",
     "mcp>=1.13.1",
     "python-dotenv>=1.1.1",
+    "uvicorn>=0.20.0",
+    "fastapi>=0.104.0",
+    "python-multipart>=0.0.6",
+    "fastmcp>=2.6.0",
 ]
