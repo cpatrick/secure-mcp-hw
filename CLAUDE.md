@@ -36,6 +36,7 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 ### Core Components
 
 - **MCPClient** (`client.py`): Custom MCP client with OAuth 2.1 discovery
+
   - Uses MCP's `ClientSession` with HTTP streamable transport
   - Automatic OAuth server discovery via RFC 8414
   - Custom OAuth 2.1 authorization code flow with PKCE
@@ -43,8 +44,9 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
   - Browser-based authorization flow for user consent
   - Manages bi-directional communication with Claude API and MCP tools
   - Implements tool execution workflow with proper message threading
-  
+
 - **Weather MCP Server** (`weather.py`): FastMCP server with custom OAuth middleware
+
   - Runs as HTTP server using SSE transport on localhost:8000
   - Custom OAuth validation middleware using `get_http_headers()`
   - Implements two tools: `get_alerts(state)` and `get_forecast(latitude, longitude)`
@@ -52,6 +54,7 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
   - OAuth token validation for all MCP requests
 
 - **OAuth 2.1 Authorization Server** (`oauth.py`): Full-featured OAuth server
+
   - Supports dynamic client registration (RFC 7591)
   - Implements OAuth 2.1 authorization code flow with PKCE
   - Provides authorization server metadata discovery (RFC 8414)
@@ -79,23 +82,23 @@ This is an MCP (Model Context Protocol) client-server demonstration project expl
 ### OAuth Flow (Discovery + Resource Indicators)
 
 1. **Server Discovery**: Discover OAuth server from MCP server's `/.well-known/oauth-protected-resource`
-2. **Metadata Validation**: Validate OAuth server metadata via RFC 8414 `/.well-known/oauth-authorization-server`
-3. **Resource Validation**: Validate MCP server URI per RFC 8707 (absolute URI, no fragments)
-4. **Client Registration**: Dynamic registration with OAuth server using RFC 7591
-5. **PKCE Generation**: Generate code verifier and challenge for enhanced security
-6. **Authorization Request**: Request authorization with resource indicator targeting specific MCP server
-7. **Browser Authorization**: Open browser for user consent with authorization URL
-8. **Manual Code Entry**: User manually enters authorization code from callback
-9. **Token Exchange**: Exchange code for access token with resource indicator for audience restriction
-10. **Resource Verification**: Validate returned token resource matches requested resource
-11. **HTTP Headers**: Include access tokens in MCP request headers
-12. **Server Validation**: MCP server middleware validates tokens and resource access per RFC 8707
+1. **Metadata Validation**: Validate OAuth server metadata via RFC 8414 `/.well-known/oauth-authorization-server`
+1. **Resource Validation**: Validate MCP server URI per RFC 8707 (absolute URI, no fragments)
+1. **Client Registration**: Dynamic registration with OAuth server using RFC 7591
+1. **PKCE Generation**: Generate code verifier and challenge for enhanced security
+1. **Authorization Request**: Request authorization with resource indicator targeting specific MCP server
+1. **Browser Authorization**: Open browser for user consent with authorization URL
+1. **Manual Code Entry**: User manually enters authorization code from callback
+1. **Token Exchange**: Exchange code for access token with resource indicator for audience restriction
+1. **Resource Verification**: Validate returned token resource matches requested resource
+1. **HTTP Headers**: Include access tokens in MCP request headers
+1. **Server Validation**: MCP server middleware validates tokens and resource access per RFC 8707
 
 ### Dependencies
 
 - `mcp>=1.13.1`: Core MCP protocol implementation
 - `fastmcp>=2.11.0`: FastMCP for server implementation and middleware
-- `anthropic>=0.64.0`: Claude API integration  
+- `anthropic>=0.64.0`: Claude API integration
 - `python-dotenv>=1.1.1`: Environment variable management
 - `uvicorn>=0.20.0`: ASGI server for HTTP transport
 - `fastapi>=0.104.0`: Web framework for OAuth server
@@ -109,6 +112,7 @@ The client expects an `.env` file with `ANTHROPIC_API_KEY` for Claude API access
 The project includes comprehensive unit tests for the OAuth client implementation:
 
 ### Test Coverage
+
 - **OAuth Server Discovery**: Tests RFC 8414 endpoint discovery and metadata validation
 - **Resource URI Validation**: Tests RFC 8707 resource indicator validation
 - **PKCE Generation**: Tests code verifier and challenge generation for security
@@ -118,6 +122,7 @@ The project includes comprehensive unit tests for the OAuth client implementatio
 - **Integration Tests**: End-to-end flow testing with mocked HTTP responses
 
 ### Running Tests
+
 ```bash
 # Install test dependencies
 uv sync --extra test
@@ -136,6 +141,7 @@ uv run python run_tests.py
 ```
 
 ### Test Structure
+
 - `TestMCPClient`: Unit tests for individual methods and functionality
 - `TestMCPClientIntegration`: Integration tests for complete workflows
 - Comprehensive mocking of HTTP requests and responses
