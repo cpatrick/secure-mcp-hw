@@ -43,7 +43,7 @@ class OAuthValidationMiddleware(Middleware):
 
                 # RFC 8707: Validate resource access
                 server_resource = (
-                    "http://localhost:8000"  # This server's resource identifier
+                    "http://127.0.0.1:8000"  # This server's resource identifier
                 )
                 if not validate_resource_access(token_info, server_resource):
                     print("Token does not grant access to this resource")
@@ -87,13 +87,14 @@ async def validate_token_with_oauth_server(token: str) -> tuple[bool, Optional[d
 
 def validate_resource_access(token_info: dict, requested_resource: str) -> bool:
     """Validate that token allows access to requested resource per RFC 8707"""
-    if not token_info:
+    if token_info is None:
+        print("❌ No token info provided")
         return False
 
     # Get token's resource from OAuth server response
     token_resource = token_info.get("resource")
 
-    if not token_resource:
+    if not token_resource or token_resource is None:
         # If no resource in token, allow access (backward compatibility)
         print("ℹ️  Token has no resource restriction")
         return True
@@ -103,8 +104,11 @@ def validate_resource_access(token_info: dict, requested_resource: str) -> bool:
     token_normalized = token_resource.rstrip("/")
 
     # RFC 8707: Token resource should match or be a parent of requested resource
-    if requested_normalized == token_normalized or requested_normalized.startswith(
-        token_normalized + "/"
+    # Also handle case where token is for /mcp path but server validates base path
+    if (
+        requested_normalized == token_normalized
+        or requested_normalized.startswith(token_normalized + "/")
+        or token_normalized.startswith(requested_normalized + "/")
     ):
         print(
             f"✓ Resource access granted: token resource '{token_resource}' allows access to '{requested_resource}'"
@@ -127,7 +131,7 @@ async def oauth_metadata(request: Request) -> JSONResponse:
     """OAuth Protected Resource Metadata for FastMCP client discovery"""
     return JSONResponse(
         {
-            "resource": "http://localhost:8000",
+            "resource": "http://127.0.0.1:8000",
             "authorization_servers": [OAUTH_SERVER_URL],
         }
     )
